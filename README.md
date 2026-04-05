@@ -1,84 +1,64 @@
 # Odoo Tutorial Agent
 
-Agente Q&A con interfaccia web sui tutorial ufficiali Odoo.
-
-## Avvio rapido (Docker)
-
-```bash
-# 1. Clona il repo
-git clone <repo-url>
-cd odoo
-
-# 2. Configura la API key
-cp .env.example .env
-# Apri .env e inserisci: ANTHROPIC_API_KEY=sk-ant-...
-
-# 3. Avvia tutto
-docker-compose up
-```
-
-Al primo avvio, Docker:
-1. Installa automaticamente tutte le dipendenze
-2. Scarica i video dai tutorial Odoo (scraping)
-3. Scarica le trascrizioni da YouTube
-4. Costruisce l'indice vettoriale
-5. Avvia il server → **http://localhost:8000**
-
-Dal secondo avvio in poi salta tutti i passi già completati e va diretto al server.
-
-> **I dati vengono mantenuti tra un avvio e l'altro** tramite volume Docker: non devi rigenerare nulla dopo un riavvio o un aggiornamento del codice.
+Agente Q&A con interfaccia web sui tutorial ufficiali Odoo.  
+**Deploy automatico ad ogni push** — nessun comando da eseguire.
 
 ---
 
-## Deploy dopo ogni commit
+## Setup iniziale (una volta sola, solo clic)
 
-```bash
-git pull
-docker-compose up --build -d    # Ricostruisce l'immagine e rilancia in background
-```
+### Opzione A — Railway (consigliata, gratuita)
+
+1. Vai su [railway.app](https://railway.app) → **Login with GitHub**
+2. **New Project** → **Deploy from GitHub repo** → seleziona questo repository
+3. Una volta creato il progetto, clicca sul servizio → **Variables** → aggiungi:
+   ```
+   ANTHROPIC_API_KEY = sk-ant-...
+   ```
+4. Vai su **Volumes** → **New Volume** → imposta Mount Path: `/app/data`
+5. Il primo deploy parte automaticamente
+
+**Da quel momento: ogni push al repository = nuovo deploy automatico.**
 
 ---
 
-## Deploy su Railway / Render
+### Opzione B — Render
 
-Il `Dockerfile` è già configurato. Basta:
+1. Vai su [render.com](https://render.com) → **New** → **Web Service**
+2. Connetti il repository GitHub
+3. Render legge automaticamente il file `render.yaml` — non serve configurare nulla
+4. Nella sezione **Environment Variables** aggiungi:
+   ```
+   ANTHROPIC_API_KEY = sk-ant-...
+   ```
+5. Clicca **Create Web Service**
 
-1. Collegare il repository a Railway o Render
-2. Impostare la variabile d'ambiente `ANTHROPIC_API_KEY` nel pannello della piattaforma
-3. Deploy automatico ad ogni push
+**Da quel momento: ogni push al repository = nuovo deploy automatico.**
+
+---
+
+## Cosa succede ad ogni deploy
+
+```
+Push su GitHub
+  └── Railway/Render costruisce l'immagine Docker
+        └── entrypoint.sh verifica cosa manca e avvia solo i passi necessari:
+              ├── [solo primo avvio] Scraping video da Odoo
+              ├── [solo primo avvio] Download trascrizioni YouTube
+              ├── [solo primo avvio] Costruzione indice ChromaDB
+              └── Avvio server web → https://tuo-progetto.railway.app
+```
+
+I dati (trascrizioni + indice) vengono salvati nel volume e **non vengono rigenerati** ai deploy successivi.
 
 ---
 
 ## Architettura
 
 ```
-entrypoint.sh
-  ├── scraper.py       → Playwright estrae video YouTube da Odoo
-  ├── transcripts.py   → youtube-transcript-api scarica trascrizioni (IT → EN)
-  ├── indexer.py       → sentence-transformers + ChromaDB indicizza i testi
-  └── app.py           → FastAPI serve la UI e l'endpoint SSE /api/chat
-```
-
-Il server usa **Claude Opus 4.6** con RAG: recupera i chunk più rilevanti da ChromaDB e li passa come contesto a Claude per ogni domanda.
-
----
-
-## Struttura file
-
-```
-data/                    (volume Docker, non in git)
-  videos.json            # Lista video con metadati
-  transcripts/           # Trascrizioni JSON per ogni video
-  chroma_db/             # Indice vettoriale persistente
-static/
-  index.html             # UI web (HTML + CSS + JS)
-app.py                   # Server FastAPI + SSE streaming
-scraper.py               # Scraping Odoo con Playwright
-transcripts.py           # Download trascrizioni YouTube
-indexer.py               # Embedding + ChromaDB
-run_pipeline.py          # Runner pipeline (uso locale)
-agent.py                 # CLI alternativa al web
-entrypoint.sh            # Script di avvio Docker
-Dockerfile
-docker-compose.yml
+scraper.py       → Playwright estrae video YouTube dalla pagina Odoo
+transcripts.py   → youtube-transcript-api scarica le trascrizioni (IT → EN)
+indexer.py       → sentence-transformers crea embedding, ChromaDB indicizza
+app.py           → FastAPI serve la UI e lo streaming SSE verso Claude API
+static/index.html → Interfaccia chat
 ```

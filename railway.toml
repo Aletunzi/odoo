@@ -1,0 +1,9 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/status"
+healthcheckTimeout = 600        # 10 min: tempo per la pipeline al primo avvio
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
