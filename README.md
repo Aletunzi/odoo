@@ -1,0 +1,2 @@
+# odoo
+RAG for KX
