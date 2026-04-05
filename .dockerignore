@@ -1,0 +1,20 @@
+# Dati generati (gestiti via volume Docker, non copiati nell'immagine)
+data/
+
+# File sensibili
+.env
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
+
+# Editor
+.vscode/
+.idea/
+*.swp

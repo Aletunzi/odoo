@@ -1,122 +1,84 @@
 # Odoo Tutorial Agent
 
-Agente Q&A basato su RAG per rispondere a domande sui tutorial ufficiali Odoo.
+Agente Q&A con interfaccia web sui tutorial ufficiali Odoo.
+
+## Avvio rapido (Docker)
+
+```bash
+# 1. Clona il repo
+git clone <repo-url>
+cd odoo
+
+# 2. Configura la API key
+cp .env.example .env
+# Apri .env e inserisci: ANTHROPIC_API_KEY=sk-ant-...
+
+# 3. Avvia tutto
+docker-compose up
+```
+
+Al primo avvio, Docker:
+1. Installa automaticamente tutte le dipendenze
+2. Scarica i video dai tutorial Odoo (scraping)
+3. Scarica le trascrizioni da YouTube
+4. Costruisce l'indice vettoriale
+5. Avvia il server → **http://localhost:8000**
+
+Dal secondo avvio in poi salta tutti i passi già completati e va diretto al server.
+
+> **I dati vengono mantenuti tra un avvio e l'altro** tramite volume Docker: non devi rigenerare nulla dopo un riavvio o un aggiornamento del codice.
+
+---
+
+## Deploy dopo ogni commit
+
+```bash
+git pull
+docker-compose up --build -d    # Ricostruisce l'immagine e rilancia in background
+```
+
+---
+
+## Deploy su Railway / Render
+
+Il `Dockerfile` è già configurato. Basta:
+
+1. Collegare il repository a Railway o Render
+2. Impostare la variabile d'ambiente `ANTHROPIC_API_KEY` nel pannello della piattaforma
+3. Deploy automatico ad ogni push
+
+---
 
 ## Architettura
 
 ```
-Scraping (Playwright)
-  → YouTube Transcripts (youtube-transcript-api)
-    → Embeddings + ChromaDB
-      → Claude API (claude-opus-4-6) con RAG
+entrypoint.sh
+  ├── scraper.py       → Playwright estrae video YouTube da Odoo
+  ├── transcripts.py   → youtube-transcript-api scarica trascrizioni (IT → EN)
+  ├── indexer.py       → sentence-transformers + ChromaDB indicizza i testi
+  └── app.py           → FastAPI serve la UI e l'endpoint SSE /api/chat
 ```
 
-## Setup
+Il server usa **Claude Opus 4.6** con RAG: recupera i chunk più rilevanti da ChromaDB e li passa come contesto a Claude per ogni domanda.
 
-```bash
-# 1. Installa dipendenze
-pip install -r requirements.txt
-
-# 2. Installa browser Playwright
-playwright install chromium
-
-# 3. Configura API key
-cp .env.example .env
-# Apri .env e inserisci ANTHROPIC_API_KEY=sk-ant-...
-```
-
-## Pipeline completa (prima volta)
-
-```bash
-python run_pipeline.py
-```
-
-Questo esegue 3 step in sequenza:
-
-| Step | Cosa fa | Output |
-|------|---------|--------|
-| 1. Scraping | Playwright visita la pagina Odoo e raccoglie gli URL dei video YouTube | `data/videos.json` |
-| 2. Trascrizioni | Scarica le trascrizioni da YouTube (IT → EN come fallback) | `data/transcripts/*.json` |
-| 3. Indicizzazione | Crea embedding con `paraphrase-multilingual-MiniLM-L12-v2` e indicizza in ChromaDB | `data/chroma_db/` |
-
-> **Nota sullo scraping**: il browser si apre in modalità visibile (non headless) per evitare il blocco 403 di Odoo. Lascia che carichi normalmente.
-
-## Avvia il server web
-
-```bash
-python app.py
-# → http://localhost:8000
-```
-
-Apre automaticamente il browser. Interfaccia stile Claude con:
-- Streaming delle risposte in tempo reale
-- Fonti cliccabili sotto ogni risposta
-- Memoria della conversazione multi-turn
-- Cronologia conversazioni nella sidebar
-- Domande suggerite per iniziare
-
-```bash
-python app.py --port 8080      # Porta personalizzata
-python app.py --no-browser     # Non aprire il browser automaticamente
-```
-
-## Uso dell'agente da CLI (alternativa)
-
-```bash
-# Chat interattiva nel terminale
-python agent.py
-
-# Domanda singola
-python agent.py --question "Come si configura il magazzino?"
-```
-
-## Step individuali
-
-```bash
-# Solo scraping
-python scraper.py
-
-# Solo trascrizioni (richiede data/videos.json)
-python transcripts.py
-
-# Solo indicizzazione (richiede data/transcripts/)
-python indexer.py
-
-# Reindicizza da zero
-python indexer.py --reset
-```
-
-## Opzioni avanzate
-
-```bash
-# Forza ri-scraping in headless (meno affidabile)
-python run_pipeline.py --headless
-
-# Salta lo scraping se videos.json esiste già
-python run_pipeline.py --skip-scraping
-
-# Ricostruisce il DB ChromaDB da zero
-python run_pipeline.py --reset-index
-
-# Trascrizioni solo in inglese
-python transcripts.py --lang en en-US
-```
+---
 
 ## Struttura file
 
 ```
-data/
-  videos.json              # Lista video con metadati corso
-  transcripts/
-    <video_id>.json        # Trascrizione + metadati per ogni video
-  transcripts_summary.json # Sommario download
-  chroma_db/               # Indice vettoriale persistente
+data/                    (volume Docker, non in git)
+  videos.json            # Lista video con metadati
+  transcripts/           # Trascrizioni JSON per ogni video
+  chroma_db/             # Indice vettoriale persistente
+static/
+  index.html             # UI web (HTML + CSS + JS)
+app.py                   # Server FastAPI + SSE streaming
+scraper.py               # Scraping Odoo con Playwright
+transcripts.py           # Download trascrizioni YouTube
+indexer.py               # Embedding + ChromaDB
+run_pipeline.py          # Runner pipeline (uso locale)
+agent.py                 # CLI alternativa al web
+entrypoint.sh            # Script di avvio Docker
+Dockerfile
+docker-compose.yml
 ```
-
-## Modelli usati
-
-| Componente | Modello | Note |
-|------------|---------|------|
-| Embedding | `paraphrase-multilingual-MiniLM-L12-v2` | Locale, ~300MB, supporta IT+EN |
-| LLM | `claude-opus-4-6` | Via API Anthropic |
-| Scraping | Playwright Chromium | Browser headful per evitare 403 |

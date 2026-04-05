@@ -225,7 +225,9 @@ if __name__ == "__main__":
     import uvicorn
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
+    # PORT da argomento o da variabile d'ambiente (Railway, Render, ecc.)
+    default_port = int(os.environ.get("PORT", 8000))
+    parser.add_argument("--port", type=int, default=default_port)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
