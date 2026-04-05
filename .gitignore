@@ -1,0 +1,21 @@
+# Dati generati dalla pipeline (troppo grandi per git)
+data/transcripts/
+data/chroma_db/
+data/transcripts_summary.json
+
+# API key
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Editor
+.vscode/
+.idea/
+*.swp
