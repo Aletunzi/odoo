@@ -41,25 +41,34 @@ Questo esegue 3 step in sequenza:
 
 > **Nota sullo scraping**: il browser si apre in modalità visibile (non headless) per evitare il blocco 403 di Odoo. Lascia che carichi normalmente.
 
-## Uso dell'agente
+## Avvia il server web
 
 ```bash
-# Chat interattiva (consigliato)
+python app.py
+# → http://localhost:8000
+```
+
+Apre automaticamente il browser. Interfaccia stile Claude con:
+- Streaming delle risposte in tempo reale
+- Fonti cliccabili sotto ogni risposta
+- Memoria della conversazione multi-turn
+- Cronologia conversazioni nella sidebar
+- Domande suggerite per iniziare
+
+```bash
+python app.py --port 8080      # Porta personalizzata
+python app.py --no-browser     # Non aprire il browser automaticamente
+```
+
+## Uso dell'agente da CLI (alternativa)
+
+```bash
+# Chat interattiva nel terminale
 python agent.py
 
 # Domanda singola
 python agent.py --question "Come si configura il magazzino?"
-
-# Con più contesto (default: 8 chunk)
-python agent.py --top-k 12
 ```
-
-### Comandi nella chat
-
-| Comando | Azione |
-|---------|--------|
-| `exit` / `esci` | Esce dalla chat |
-| `clear` | Azzera la memoria della conversazione |
 
 ## Step individuali
 
