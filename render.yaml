@@ -1,13 +1,14 @@
 services:
   - type: web
     name: odoo-agent
-    runtime: docker
+    env: docker
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: ANTHROPIC_API_KEY
-        sync: false           # L'utente la inserisce nel pannello Render
+        sync: false      # Inserita manualmente nel pannello Render
     disk:
       name: odoo-data
-      mountPath: /app/data    # Volume persistente per trascrizioni e indice
+      mountPath: /app/data    # Dati persistenti tra un deploy e l'altro
       sizeGB: 5
     healthCheckPath: /api/status
